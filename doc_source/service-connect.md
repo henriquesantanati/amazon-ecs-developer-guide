@@ -23,19 +23,19 @@ Amazon ECS Service Connect is available in the following AWS Regions:
 
 | Region Name | Region | 
 | --- | --- | 
-|  US East \(N\. Virginia\)  |  us\-east\-1  | 
 |  US East \(Ohio\)  |  us\-east\-2  | 
+|  US East \(N\. Virginia\)  |  us\-east\-1  | 
 |  US West \(N\. California\)  |  us\-west\-1  | 
 |  US West \(Oregon\)  |  us\-west\-2  | 
 |  Africa \(Cape Town\)  |  af\-south\-1  | 
 |  Asia Pacific \(Hong Kong\)  |  ap\-east\-1  | 
+|  Asia Pacific \(Jakarta\)  |  ap\-southeast\-3  | 
 |  Asia Pacific \(Mumbai\)  |  ap\-south\-1  | 
-|  Asia Pacific \(Tokyo\)  |  ap\-northeast\-1  | 
-|  Asia Pacific \(Seoul\)  |  ap\-northeast\-2  | 
 |  Asia Pacific \(Osaka\)  |  ap\-northeast\-3  | 
+|  Asia Pacific \(Seoul\)  |  ap\-northeast\-2  | 
 |  Asia Pacific \(Singapore\)  |  ap\-southeast\-1  | 
 |  Asia Pacific \(Sydney\)  |  ap\-southeast\-2  | 
-|  Asia Pacific \(Jakarta\)  |  ap\-southeast\-3  | 
+|  Asia Pacific \(Tokyo\)  |  ap\-northeast\-1  | 
 |  Canada \(Central\)  |  ca\-central\-1  | 
 |  China \(Beijing\)  |  cn\-north\-1  | 
 |  China \(Ningxia\)  |  cn\-northwest\-1  | 
@@ -45,7 +45,9 @@ Amazon ECS Service Connect is available in the following AWS Regions:
 |  Europe \(Paris\)  |  eu\-west\-3  | 
 |  Europe \(Milan\)  |  eu\-south\-1  | 
 |  Europe \(Stockholm\)  |  eu\-north\-1  | 
+|  Europe \(Zurich\)  |  eu\-central\-2  | 
 |  Middle East \(Bahrain\)  |  me\-south\-1  | 
+|  Middle East \(UAE\)  |  me\-central\-1  | 
 |  South America \(São Paulo\)  |  sa\-east\-1  | 
 
 ## Service Connect concepts<a name="service-connect-concepts"></a>
@@ -154,19 +156,19 @@ When you prepare to start using Service Connect, start with a client\-server ser
 
 Existing tasks and other applications can continue to connect to existing endpoints, and external applications\. If a client\-server service adds tasks by scaling out, new connections from clients will be balanced between all of the tasks immediately\. If a client\-server service is updated, new connections from clients will be balanced between the tasks of the new version immediately\.
 
-Existing tasks can't resolve and connect to the new endpoint\. Only new Amazon ECS tasks that have a Service Connect configuration in the same namespace and that start running after this deployment can resolve and connect to this endpoint\. For example, an Amazon ECS service that runs a client application must start new tasks after the deployment completes of the server that it connects to\.
+Existing tasks can't resolve and connect to the new endpoint\. Only new Amazon ECS tasks that have a Service Connect configuration in the same namespace and that start running after this deployment can resolve and connect to this endpoint\. For example, an Amazon ECS service that runs a client application must be redeployed to connect to a new endpoint\. Start that deployment after the deployment completes of the server that makes the endpoint that the client connects to\.
 
 This means that the operator of the client application determines when the configuration of their app changes, even though the operator of the server application can change their configuration at any time\. The list of endpoints in the namespace can change every time that any Amazon ECS service in the namespace is deployed\.
 
 Consider the following examples\.
 
-First, assume that you are creating an application that is available to the public internet in a single AWS CloudFormation template and single AWS CloudFormation stack\. The public discovery and reachability should be created last by AWS CloudFormation, including the frontend client service\. The service need to be created in this order to prevent an time period when the frontend client service is running and available the public, but a backend isn't\. This eliminates error messages from being sent to the public during that time period\. In AWS CloudFormation, you must use the `dependsOn` to indicate to AWS CloudFormation that multiple Amazon ECS services can't be made in parallel or simultaneously\. You should add the `dependsOn` to the frontend client service for each backend client\-server service that the client tasks connect to\.
+First, assume that you are creating an application that is available to the public internet in a single AWS CloudFormation template and single AWS CloudFormation stack\. The public discovery and reachability should be created last by AWS CloudFormation, including the frontend client service\. The services need to be created in this order to prevent an time period when the frontend client service is running and available the public, but a backend isn't\. This eliminates error messages from being sent to the public during that time period\. In AWS CloudFormation, you must use the `dependsOn` to indicate to AWS CloudFormation that multiple Amazon ECS services can't be made in parallel or simultaneously\. You should add the `dependsOn` to the frontend client service for each backend client\-server service that the client tasks connect to\.
 
 Second, assume that a frontend service exists without Service Connect configuration\. The tasks are connecting to an existing backend service\. Add a client\-server Service Connect configuration to the backend service first, using the same name in the **DNS** or `clientAlias` that the frontend uses\. This creates a new deployment, so all the deployment rollback detection or AWS Management Console, AWS CLI, AWS SDKs and other methods to roll back and revert the backend service to the previous deployment and configuration\. If you are satisfied with the performance and behavior of the backend service, add a client or client\-server Service Connect configuration to the frontend service\. Only the tasks in the new deployment use the Service Connect proxy that is added to those new tasks\. If you have issues with this configuration, you can roll back and revert to your previous configuration by using the deployment rollback detection or AWS Management Console, AWS CLI, AWS SDKs and other methods to roll back and revert the backend service to the previous deployment and configuration\. If you use another service discovery system that is based on DNS instead of Service Connect, any frontend or client applications begin using new endpoints and changed endpoint configuration after the local DNS cache expires, commonly taking multiple hours\.
 
 ### Networking<a name="service-connect-concepts-network"></a>
 
-In the default configuration, you don't need to change your Amazon VPC security groups to use Service Connect\. The Service Connect proxy listens on the `containerPort` from the port mapping in the task definition\.
+In the default configuration, the Service Connect proxy listens on the `containerPort` from the port mapping in the task definition\. If you have rules in your security group to allow this port, then you don't need to change your Amazon VPC security groups to use Service Connect\.
 
 Even if you set a port number in the Service Connect service configuration, this doesn't change the port for the client\-server service that the Service Connect proxy listens on\. When you set this port number, Amazon ECS changes the port of the endpoint that the client services connect to, on the Service Connect proxy inside those tasks\. The proxy in the client service connects to the proxy in the client\-server service using the `containerPort`\.
 
@@ -212,13 +214,12 @@ The following parameters have extra fields when using Service Connect\.
 ## Service Connect considerations<a name="service-connect-considerations"></a>
 + Windows containers aren't supported with Service Connect\.
 + Tasks that run in Fargate must use the Fargate Linux platform version 1\.4\.0 or higher to use Service Connect\.
-+ The agent version on the container instance must be 1\.67\.2 or higher\.
-+ Container instances must run the Amazon ECS\-optimized Amazon Linux 2 AMI version `2.0.20221115` or later to use Service Connect\. You can't use Service Connect on other AMIs or operating systems\. Additional software is required, which is only in this AMI\. 
++ The ECS agent version on the container instance must be 1\.67\.2 or higher\.
++ The Amazon ECS\-optimized Amazon Linux 2023 AMI isn't supported with Service Connect\. This is because the Service Connect agent isn't available for Amazon Linux 2023\.
++ Container instances must run the Amazon ECS\-optimized Amazon Linux 2 AMI version `2.0.20221115` or later to use Service Connect\. You can't use Service Connect on other AMIs or operating systems\. The Service Connect agent is required, which is only in this AMI\. For more information about the Service Connect agent, see [Amazon ECS Service Connect Agent](https://github.com/aws/amazon-ecs-service-connect-agent) on GitHub\.
 + Container instances must have the `ecs:Poll` permission for the resource `arn:aws:ecs:region:0123456789012:task-set/cluster/*`\. If you are using the `ecsInstanceRole`, you don't need to add additional permissions\. The `AmazonEC2ContainerServiceforEC2Role` managed policy has the necessary permissions\. For more information, see [Amazon ECS container instance IAM role](instance_IAM_role.md)\.
-+ You can't use capacity provider strategies to run services with Service Connect on Amazon EC2 instances\. Use the EC2 launch type for services with Service Connect\.
 + `External` container instance for Amazon ECS Anywhere aren't supported with Service Connect\.
 + Only services that use rolling deployments are supported with Service Connect\. Services that use the *blue/green* and *external* deployment types aren’t supported\.
-+ You can't use ECS deployment circuit breakers with Service Connect\. Before deleting a service with circuit breakers, you must update your services to remove the circuit breakers\. If you delete a service with both Service Connect and circuit breakers, you might have issues when you create services with the same configuration\.
 + Task definitions must set the task memory limit to use Service Connect\. For more information, see [Service Connect proxy](#service-connect-concepts-proxy)\.
 + Task definitions that set container memory limits for all containers instead of setting the task memory limit aren't supported\.
 

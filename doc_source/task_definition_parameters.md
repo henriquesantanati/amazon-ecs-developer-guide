@@ -293,7 +293,7 @@ The following advanced container definition parameters provide extended capabili
 #### Health check<a name="container_definition_healthcheck"></a>
 
 `healthCheck`  
-The container health check command and the associated configuration parameters for the container\. This parameter maps to `HealthCheck` in the [Create a container](https://docs.docker.com/engine/api/v1.38/#operation/ContainerCreate) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `HEALTHCHECK` parameter of [docker run](https://docs.docker.com/engine/reference/run/)\.   
+The container health check command and the associated configuration parameters for the container\. This parameter maps to `HealthCheck` in the [Create a container](https://docs.docker.com/engine/api/v1.38/#operation/ContainerCreate) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `HEALTHCHECK` parameter of [docker run](https://docs.docker.com/engine/reference/run/)\.  
 The Amazon ECS container agent only monitors and reports on the health checks that are specified in the task definition\. Amazon ECS doesn't monitor Docker health checks that are embedded in a container image but aren't specified in the container definition\. Health check parameters that are specified in a container definition override any Docker health checks that exist in the container image\.
 You can view the health status of both individual containers and a task with the DescribeTasks API operation or when viewing the task details in the console\.  
 The following describes the possible `healthStatus` values for a container:  
@@ -303,7 +303,7 @@ The following describes the possible `healthStatus` values for a container:
 The following describes the possible `healthStatus` values for a task\. The container health check status of non\-essential containers don't have an effect on the health status of a task\.  
 + `HEALTHY`—All essential containers within the task have passed their health checks\.
 + `UNHEALTHY`—One or more essential containers have failed their health check\.
-+ `UNKNOWN`—The essential containers within the task are still having their health checks evaluated or there are no container health checks defined\.
++ `UNKNOWN`—The essential containers within the task are still having their health checks evaluated, there are only nonessential containers with health checks defined, or there are no container health checks defined\.
 If a task is run manually and not as part of a service, it continues its lifecycle regardless of its health status\. For tasks that are part of a service, if the task reports as unhealthy, then the task is stopped and the service scheduler replaces it\.  
 The following are notes about container health check support:  
 + Container health checks require version 1\.17\.0 or greater of the Amazon ECS container agent\. For more information, see [Updating the Amazon ECS container agent](ecs-agent-update.md)\.
@@ -356,6 +356,7 @@ This parameter isn't supported for Windows containers or containers that are hos
 Type: [ResourceRequirement](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ResourceRequirement.html) object  
 Required: no  
 For the `InferenceAccelerator` type, the `value` matches the `deviceName` for an `InferenceAccelerator` specified in a task definition\. For more information, see [Elastic Inference accelerator name](#elastic-Inference-accelerator)\.  
+Starting April 15, 2023, AWS will not onboard new customers to Amazon Elastic Inference \(EI\), and will help current customers migrate their workloads to options that offer better price and performance\. After April 15, 2023, new customers will not be able to launch instances with Amazon EI accelerators in Amazon SageMaker, Amazon ECS, or Amazon EC2\. However, customers who have used Amazon EI at least once during the past 30\-day period are considered current customers and will be able to continue using the service\. 
 This parameter is not supported for Windows containers or containers hosted on Fargate\.
 
 `essential`  
@@ -718,8 +719,9 @@ This parameter is not supported for Windows containers\.
 Type: string array  
 Valid values: "no\-new\-privileges" \| "apparmor:PROFILE" \| "label:*value*" \| "credentialspec:*CredentialSpecFilePath*"  
 Required: no  
-A list of strings to provide custom labels for SELinux and AppArmor multi\-level security systems\. For more information about valid values, see [Docker Run Security Configuration](https://docs.docker.com/engine/reference/run/#security-configuration)\. This field isn't valid for containers in tasks using the Fargate launch type\.  
-With Windows containers, this parameter can be used to reference a credential spec file when configuring a container for Active Directory authentication\. For more information, see [Using gMSAs for Windows Containers](windows-gmsa.md)\.  
+A list of strings to provide custom configuration for multiple security systems\. For more information about valid values, see [Docker Run Security Configuration](https://docs.docker.com/engine/reference/run/#security-configuration)\. This field isn't valid for containers in tasks using the Fargate launch type\.  
+For Linux tasks on EC2, this parameter can be used to reference custom labels for SELinux and AppArmor multi\-level security systems\.  
+For any tasks on EC2, this parameter can be used to reference a credential spec file that configures a container for Active Directory authentication\. For more information, see [Using gMSAs for Windows Containers](windows-gmsa.md) and [Using gMSAs for Linux Containers](linux-gmsa.md)\.  
 This parameter maps to `SecurityOpt` in the [Create a container](https://docs.docker.com/engine/api/v1.38/#operation/ContainerCreate) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--security-opt` option to [https://docs.docker.com/engine/reference/run/#security-configuration](https://docs.docker.com/engine/reference/run/#security-configuration)\.  
 
 ```
@@ -733,7 +735,7 @@ The Amazon ECS container agent that run on a container instance must register wi
 Type: object array  
 Required: no  
 A list of `ulimit` values to define for a container\. This value overwrites the default resource quota setting for the operating system\. This parameter maps to `Ulimits` in the [Create a container](https://docs.docker.com/engine/api/v1.38/#operation/ContainerCreate) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--ulimit` option to [https://docs.docker.com/engine/reference/commandline/run/](https://docs.docker.com/engine/reference/commandline/run/)\.  
-Amazon ECS tasks hosted on Fargate use the default resource limit values set by the operating system with the exception of the `nofile` resource limit parameter which Fargate overrides\. The `nofile` resource limit sets a restriction on the number of open files that a container can use\. The default `nofile` soft limit is `1024` and hard limit is `4096`\. For more information, see [Task resource limits](AWS_Fargate.md#fargate-resource-limits)\.  
+Amazon ECS tasks hosted on Fargate use the default resource limit values set by the operating system with the exception of the `nofile` resource limit parameter which Fargate overrides\. The `nofile` resource limit sets a restriction on the number of open files that a container can use\. The default `nofile` soft limit is `1024` and hard limit is `4096`\. You can set the values of both limits up to `1048576`\. For more information, see [Task resource limits](AWS_Fargate.md#fargate-resource-limits)\.  
 This parameter requires version 1\.18 of the Docker Remote API or greater on your container instance\.  
 This parameter is not supported for Windows containers\.
 
@@ -848,6 +850,7 @@ Type: Integer
 `swappiness`  
 This allows you to tune a container's memory swappiness behavior\. A `swappiness` value of `0` prevents swapping from happening unless required\. A `swappiness` value of `100` causes pages to be swapped frequently\. Accepted values are whole numbers between `0` and `100`\. If you don't specify a value, the default value of `60` is used\. Moreover, if you don't specify a value for `maxSwap`, then this parameter is ignored\. This parameter maps to the `--memory-swappiness` option to [docker run](https://docs.docker.com/engine/reference/run/)\.  
 If you're using tasks that use the Fargate launch type, the `swappiness` parameter isn't supported\.  
+If you're using tasks on Amazon Linux 2023 the `swappiness` parameter isn't supported\.  
 `tmpfs`  
 The container path, mount options, and maximum size \(in MiB\) of the tmpfs mount\. This parameter maps to the `--tmpfs` option to [docker run](https://docs.docker.com/engine/reference/run/)\.  
 If you're using tasks that use the Fargate launch type, the `tmpfs` parameter isn't supported\.
@@ -965,6 +968,9 @@ Required: no
 When this parameter is `true`, a TTY is allocated\. This parameter maps to `Tty` in the [Create a container](https://docs.docker.com/engine/api/v1.38/#operation/ContainerCreate) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--tty` option to [https://docs.docker.com/engine/reference/commandline/run/](https://docs.docker.com/engine/reference/commandline/run/)\.
 
 ## Elastic Inference accelerator name<a name="elastic-Inference-accelerator"></a>
+
+**Note**  
+Starting April 15, 2023, AWS will not onboard new customers to Amazon Elastic Inference \(EI\), and will help current customers migrate their workloads to options that offer better price and performance\. After April 15, 2023, new customers will not be able to launch instances with Amazon EI accelerators in Amazon SageMaker, Amazon ECS, or Amazon EC2\. However, customers who have used Amazon EI at least once during the past 30\-day period are considered current customers and will be able to continue using the service\. 
 
 The Elastic Inference accelerator resource requirement for your task definition\. For more information, see [What Is Elastic Inference?](https://docs.aws.amazon.com/elastic-inference/latest/developerguide/what-is-ei.html) in the Amazon Elastic Inference Developer Guide\.
 
@@ -1201,7 +1207,7 @@ The following task definition parameters can be used when registering task defin
 Type: Object  
 Required: No  
 The amount of ephemeral storage \(in GB\) to allocate for the task\. This parameter is used to expand the total amount of ephemeral storage available, beyond the default amount, for tasks that are hosted on AWS Fargate\. For more information, see [Bind mounts](bind-mounts.md)\.  
-This parameter is only supported for tasks that are hosted on AWS Fargate using platform version `1.4.0` or later \(Linux\)\. This isn't supported for Windows containers on Fargate\.
+This parameter is only supported for tasks that are hosted on AWS Fargate using platform version `1.4.0` or later \(Linux\) or `1.0.0` or later \(Windows\)\.
 
 ### IPC mode<a name="task_definition_ipcmode"></a>
 
